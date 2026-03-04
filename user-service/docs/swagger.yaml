@@ -1,0 +1,215 @@
+basePath: /api/v1
+definitions:
+  internal_handler.HealthResponse:
+    properties:
+      service:
+        example: user-service
+        type: string
+      status:
+        example: ok
+        type: string
+    type: object
+  user-service_internal_model.ErrorResponse:
+    properties:
+      error:
+        example: something went wrong
+        type: string
+    type: object
+  user-service_internal_model.LoginRequest:
+    properties:
+      email:
+        example: john@example.com
+        type: string
+      password:
+        example: secret123
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  user-service_internal_model.LoginResponse:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIs...
+        type: string
+      user:
+        $ref: '#/definitions/user-service_internal_model.UserResponse'
+    type: object
+  user-service_internal_model.ProfileDetailResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        example: john@example.com
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      member_since_days:
+        example: 365
+        type: integer
+      name:
+        example: John Doe
+        type: string
+      updated_at:
+        type: string
+    type: object
+  user-service_internal_model.RegisterRequest:
+    properties:
+      email:
+        example: john@example.com
+        type: string
+      name:
+        example: John Doe
+        type: string
+      password:
+        example: secret123
+        minLength: 6
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  user-service_internal_model.UserResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        example: john@example.com
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      name:
+        example: John Doe
+        type: string
+      updated_at:
+        type: string
+    type: object
+host: localhost:8081
+info:
+  contact: {}
+  description: User authentication and management service for Minibank
+  title: Minibank User Service API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate with email and password, returns JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user-service_internal_model.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/user-service_internal_model.LoginResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/user-service_internal_model.ErrorResponse'
+      summary: Login user
+      tags:
+      - auth
+  /auth/profile:
+    get:
+      description: Returns the profile of the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/user-service_internal_model.UserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/user-service_internal_model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/user-service_internal_model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user profile
+      tags:
+      - auth
+  /auth/profile/detail:
+    get:
+      description: Returns a comprehensive profile combining all user columns with
+        computed metadata
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/user-service_internal_model.ProfileDetailResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/user-service_internal_model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/user-service_internal_model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get detailed user profile
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account with name, email, and password
+      parameters:
+      - description: Registration payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user-service_internal_model.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/user-service_internal_model.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/user-service_internal_model.ErrorResponse'
+      summary: Register a new user
+      tags:
+      - auth
+  /health:
+    get:
+      description: Returns service health status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.HealthResponse'
+      summary: Health check
+      tags:
+      - health
+securityDefinitions:
+  BearerAuth:
+    description: Enter your token with the Bearer prefix, e.g. "Bearer eyJhbGciOiJIUzI1NiIs..."
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

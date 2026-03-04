@@ -1,0 +1,212 @@
+basePath: /api/v1
+definitions:
+  internal_handler.HealthResponse:
+    properties:
+      service:
+        example: transaction-service
+        type: string
+      status:
+        example: ok
+        type: string
+    type: object
+  transaction-service_internal_model.ErrorResponse:
+    properties:
+      error:
+        example: something went wrong
+        type: string
+    type: object
+  transaction-service_internal_model.TopUpRequest:
+    properties:
+      account_number:
+        example: "1234567890"
+        type: string
+      amount:
+        example: "500.00"
+        type: string
+    required:
+    - account_number
+    - amount
+    type: object
+  transaction-service_internal_model.TransactionResponse:
+    properties:
+      amount:
+        example: 100.5
+        type: number
+      created_at:
+        type: string
+      description:
+        example: Transfer 100.50 from 1111111111 to 1234567890
+        type: string
+      from_account_id:
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/transaction-service_internal_model.TransactionStatus'
+        example: SUCCESS
+      to_account_number:
+        example: "1234567890"
+        type: string
+      type:
+        allOf:
+        - $ref: '#/definitions/transaction-service_internal_model.TransactionType'
+        example: TRANSFER
+    type: object
+  transaction-service_internal_model.TransactionStatus:
+    enum:
+    - SUCCESS
+    - FAILED
+    type: string
+    x-enum-varnames:
+    - StatusSuccess
+    - StatusFailed
+  transaction-service_internal_model.TransactionType:
+    enum:
+    - TRANSFER
+    - TOPUP
+    type: string
+    x-enum-varnames:
+    - TypeTransfer
+    - TypeTopUp
+  transaction-service_internal_model.TransferRequest:
+    properties:
+      amount:
+        example: "100.50"
+        type: string
+      from_account_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      to_account_number:
+        example: "1234567890"
+        type: string
+    required:
+    - amount
+    - from_account_id
+    - to_account_number
+    type: object
+host: localhost:8083
+info:
+  contact: {}
+  description: Transaction management service for Minibank
+  title: Minibank Transaction Service API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      description: Returns service health status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.HealthResponse'
+      summary: Health check
+      tags:
+      - health
+  /transactions/history/{account_id}:
+    get:
+      description: Retrieve all transactions for a given account
+      parameters:
+      - description: Account ID (UUID)
+        in: path
+        name: account_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/transaction-service_internal_model.TransactionResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/transaction-service_internal_model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/transaction-service_internal_model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get transaction history
+      tags:
+      - transactions
+  /transactions/topup:
+    post:
+      consumes:
+      - application/json
+      description: Add funds to a bank account. Amount must be a numeric string.
+      parameters:
+      - description: Top up payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/transaction-service_internal_model.TopUpRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/transaction-service_internal_model.TransactionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/transaction-service_internal_model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/transaction-service_internal_model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Top up account balance
+      tags:
+      - transactions
+  /transactions/transfer:
+    post:
+      consumes:
+      - application/json
+      description: Transfer funds from one account to another. Uses DB transactions
+        with row locking (SELECT FOR UPDATE) for ACID safety. Amount must be a numeric
+        string.
+      parameters:
+      - description: Transfer payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/transaction-service_internal_model.TransferRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/transaction-service_internal_model.TransactionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/transaction-service_internal_model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/transaction-service_internal_model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Transfer money between accounts
+      tags:
+      - transactions
+securityDefinitions:
+  BearerAuth:
+    description: Enter your token with the Bearer prefix, e.g. "Bearer eyJhbGciOiJIUzI1NiIs..."
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

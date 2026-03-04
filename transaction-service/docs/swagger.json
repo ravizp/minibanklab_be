@@ -1,0 +1,320 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Transaction management service for Minibank",
+        "title": "Minibank Transaction Service API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8083",
+    "basePath": "/api/v1",
+    "paths": {
+        "/health": {
+            "get": {
+                "description": "Returns service health status",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.HealthResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/transactions/history/{account_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve all transactions for a given account",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "transactions"
+                ],
+                "summary": "Get transaction history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account ID (UUID)",
+                        "name": "account_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/transaction-service_internal_model.TransactionResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/transaction-service_internal_model.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/transaction-service_internal_model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/transactions/topup": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Add funds to a bank account. Amount must be a numeric string.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "transactions"
+                ],
+                "summary": "Top up account balance",
+                "parameters": [
+                    {
+                        "description": "Top up payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/transaction-service_internal_model.TopUpRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/transaction-service_internal_model.TransactionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/transaction-service_internal_model.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/transaction-service_internal_model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/transactions/transfer": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Transfer funds from one account to another. Uses DB transactions with row locking (SELECT FOR UPDATE) for ACID safety. Amount must be a numeric string.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "transactions"
+                ],
+                "summary": "Transfer money between accounts",
+                "parameters": [
+                    {
+                        "description": "Transfer payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/transaction-service_internal_model.TransferRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/transaction-service_internal_model.TransactionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/transaction-service_internal_model.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/transaction-service_internal_model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "internal_handler.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "service": {
+                    "type": "string",
+                    "example": "transaction-service"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "ok"
+                }
+            }
+        },
+        "transaction-service_internal_model.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "something went wrong"
+                }
+            }
+        },
+        "transaction-service_internal_model.TopUpRequest": {
+            "type": "object",
+            "required": [
+                "account_number",
+                "amount"
+            ],
+            "properties": {
+                "account_number": {
+                    "type": "string",
+                    "example": "1234567890"
+                },
+                "amount": {
+                    "type": "string",
+                    "example": "500.00"
+                }
+            }
+        },
+        "transaction-service_internal_model.TransactionResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number",
+                    "example": 100.5
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Transfer 100.50 from 1111111111 to 1234567890"
+                },
+                "from_account_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/transaction-service_internal_model.TransactionStatus"
+                        }
+                    ],
+                    "example": "SUCCESS"
+                },
+                "to_account_number": {
+                    "type": "string",
+                    "example": "1234567890"
+                },
+                "type": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/transaction-service_internal_model.TransactionType"
+                        }
+                    ],
+                    "example": "TRANSFER"
+                }
+            }
+        },
+        "transaction-service_internal_model.TransactionStatus": {
+            "type": "string",
+            "enum": [
+                "SUCCESS",
+                "FAILED"
+            ],
+            "x-enum-varnames": [
+                "StatusSuccess",
+                "StatusFailed"
+            ]
+        },
+        "transaction-service_internal_model.TransactionType": {
+            "type": "string",
+            "enum": [
+                "TRANSFER",
+                "TOPUP"
+            ],
+            "x-enum-varnames": [
+                "TypeTransfer",
+                "TypeTopUp"
+            ]
+        },
+        "transaction-service_internal_model.TransferRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "from_account_id",
+                "to_account_number"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "string",
+                    "example": "100.50"
+                },
+                "from_account_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "to_account_number": {
+                    "type": "string",
+                    "example": "1234567890"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Enter your token with the Bearer prefix, e.g. \"Bearer eyJhbGciOiJIUzI1NiIs...\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}
