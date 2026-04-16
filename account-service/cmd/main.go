@@ -29,6 +29,9 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+    gintrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/gin-gonic/gin"
+    gormtrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/gorm.io/gorm.io/gorm.v2"
 )
 
 // @title           Minibank Account Service API
@@ -42,6 +45,16 @@ import (
 // @description Enter your token with the Bearer prefix, e.g. "Bearer eyJhbGciOiJIUzI1NiIs..."
 func main() {
 	cfg := config.Load()
+
+	// --- TAMBAHKAN INI: Start Tracer ---
+    // Datadog akan otomatis mengambil konfig dari env var DD_AGENT_HOST
+    tracer.Start(
+        tracer.WithService("account-service"),
+        tracer.WithEnv("development"),
+		tracer.WithRuntimeMetrics(), // Opsional: untuk melihat performa Go Garbage Collector
+    )
+    defer tracer.Stop()
+    // -----------------------------------------
 
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		direction := "up"
@@ -89,6 +102,9 @@ func main() {
 
 	r := gin.Default()
 
+	// --- TAMBAHKAN INI: Middleware Tracing ---
+    r.Use(gintrace.Middleware("account-service"))
+    // -----------------------------------------
 	r.GET("/health", handler.HealthCheck)
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
@@ -178,12 +194,17 @@ func connectDB(dsn string) *gorm.DB {
 	for i := 0; i < 30; i++ {
 		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err == nil {
+			// --- TAMBAHKAN INI: Tracing untuk Database ---
+            if err := db.Use(gormtrace.NewPlugin(gormtrace.WithServiceName("account-service-db"))); err != nil {
+                log.Printf("failed to use gormtrace plugin: %v", err)
+            }
+            // ----------------------------------------------
 			sqlDB, _ := db.DB()
 			if sqlDB.Ping() == nil {
 				log.Println("Connected to database successfully")
 				sqlDB.SetMaxOpenConns(25)
 				sqlDB.SetMaxIdleConns(5)
-				sqlDB.SetConnMaxLifetime(5 * time.Minute)
+				sqlDB.SetConnMaxLifetime(5 * time.Minute)x
 				return db
 			}
 		}

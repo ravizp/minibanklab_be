@@ -29,6 +29,9 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+    gintrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/gin-gonic/gin"
+    gormtrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/gorm.io/gorm.io/gorm.v2"
 )
 
 // @title           Minibank Transaction Service API
@@ -43,6 +46,14 @@ import (
 func main() {
 	cfg := config.Load()
 
+	// --- 1. Mulai Tracer ---
+    tracer.Start(
+        tracer.WithService("transaction-service"),
+        tracer.WithEnv("development"),
+        tracer.WithRuntimeMetrics(), // Opsional: untuk melihat performa Go Garbage Collector
+    )
+    defer tracer.Stop()
+    // -----------------------------------------
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		direction := "up"
 		if len(os.Args) > 2 {
@@ -78,6 +89,9 @@ func main() {
 
 	r := gin.Default()
 
+	// --- 2. Middleware Tracing ---
+    r.Use(gintrace.Middleware("transaction-service"))
+    // -----------------------------------------
 	r.GET("/health", handler.HealthCheck)
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
@@ -166,6 +180,11 @@ func connectDB(dsn string) *gorm.DB {
 	for i := 0; i < 30; i++ {
 		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err == nil {
+			// --- 3. Tambahkan Plugin Tracing ke GORM ---
+            if err := db.Use(gormtrace.NewPlugin(gormtrace.WithServiceName("transaction-db"))); err != nil {
+                log.Printf("failed to hook gorm to datadog: %v", err)
+            }
+            // ----------------------------------------------
 			sqlDB, _ := db.DB()
 			if sqlDB.Ping() == nil {
 				log.Println("Connected to database successfully")
